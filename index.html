@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>わくわくおみくじ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6b6b">
+<link rel="icon" href="icon-192.png">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+    text-align: center;
+    background-color: #fff9e6;
+    margin: 0;
+    padding: 32px 16px 60px;
+    color: #4a4a4a;
+  }
+
+  /* ===== 更新バナー ===== */
+  #update-banner {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #2f3542;
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 14px;
+    margin: 0 auto 16px;
+    max-width: 350px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  }
+  #update-banner p { margin: 0 0 10px; font-weight: bold; }
+  #update-banner .banner-buttons { display: flex; gap: 8px; }
+  #update-banner button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 10px;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #btn-update-now { background: #ff6b6b; color: #fff; }
+  #btn-update-later { background: #57606f; color: #fff; }
+
+  .container {
+    background: #ffffff;
+    padding: 30px 20px;
+    border-radius: 30px;
+    border: 6px solid #ff6b6b;
+    box-shadow: 0 8px 0px #ee5253;
+    max-width: 350px;
+    margin: 0 auto;
+  }
+  h1 { color: #ff6b6b; font-size: 2rem; margin: 0 0 10px 0; }
+  .shrine-emoji { font-size: 3rem; margin-bottom: 6px; }
+
+  .result-card {
+    background-color: #fef2f2;
+    border-radius: 20px;
+    border: 3px dashed #ff9f43;
+    margin: 20px 0;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* 画像は必ずJSのインラインスタイルでbackgroundImage等を設定する（CSSでは形だけ用意） */
+  #box-icon {
+    width: 70px;
+    height: 70px;
+  }
+
+  .result {
+    font-size: 3.8rem;
+    font-weight: bold;
+    color: #ee5253;
+    text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.1);
+  }
+  .message { font-size: 1rem; font-weight: bold; color: #ff9f43; margin-top: 5px; }
+
+  .shake { animation: wakuwaku 0.1s infinite; }
+  @keyframes wakuwaku {
+    0% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+    100% { transform: rotate(-3deg); }
+  }
+
+  .button-group { display: flex; flex-direction: column; gap: 10px; }
+  button { font-size: 1.2rem; padding: 15px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.1s; }
+  .btn-start { background-color: #ff6b6b; color: white; box-shadow: 0 5px 0px #ee5253; }
+  .btn-reset { background-color: #ffcc5c; color: #4a4a4a; font-size: 0.9rem; }
+  button:active { transform: translateY(3px); box-shadow: none; }
+  button:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+  /* ===== 診断パネル（開発者向け：あえて事務的な見た目にする） ===== */
+  .diag-wrap { max-width: 350px; margin: 20px auto 0; }
+  #diag-toggle {
+    width: 100%;
+    background: #f1f2f6;
+    color: #57606f;
+    border: 1px solid #ced6e0;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    padding: 10px;
+    box-shadow: none;
+  }
+  #diag-panel {
+    display: none;
+    text-align: left;
+    background: #2f3542;
+    color: #d2dae2;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  #diag-panel h2 { font-size: 0.8rem; color: #fff; margin: 14px 0 4px; border-bottom: 1px solid #57606f; padding-bottom: 4px; }
+  #diag-panel h2:first-of-type { margin-top: 0; }
+  #diag-panel .ok { color: #7bed9f; }
+  #diag-panel .ng { color: #ff6b81; }
+  #diag-panel ul { margin: 4px 0; padding-left: 16px; }
+  #diag-refresh-btn {
+    width: 100%;
+    margin-top: 12px;
+    background: #ffa502;
+    color: #2f3542;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    padding: 10px;
+    box-shadow: none;
+  }
+  #diag-update-btn {
+    width: 100%;
+    margin-top: 8px;
+    background: #57606f;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    padding: 10px;
+    box-shadow: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="update-banner">
+  <p>🆕 新しいバージョンが見つかりました</p>
+  <div class="banner-buttons">
+    <button id="btn-update-now">更新する</button>
+    <button id="btn-update-later">あとで</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="shrine-emoji">⛩️</div>
+  <h1>おみくじ</h1>
+
+  <div class="result-card" id="card">
+    <div id="box-icon"></div>
+    <div id="result" class="result"></div>
+    <div id="msg" class="message"></div>
+  </div>
+
+  <div class="button-group">
+    <button class="btn-start" id="start-btn">おみくじを引く！</button>
+    <button class="btn-reset" id="reset-btn">もういちど</button>
+  </div>
+</div>
+
+<div class="diag-wrap">
+  <button id="diag-toggle">⚙️ 診断パネルを表示 / 非表示</button>
+  <div id="diag-panel">
+    <h2>Service Worker</h2>
+    <div id="diag-sw">確認中...</div>
+
+    <h2>ストレージ永続化</h2>
+    <div id="diag-storage">確認中...</div>
+
+    <h2>キャッシュ件数</h2>
+    <div id="diag-count">確認中...</div>
+
+    <h2>キャッシュ済みURL一覧</h2>
+    <ul id="diag-urls"><li>確認中...</li></ul>
+
+    <h2>直近のキャッシュ取得結果</h2>
+    <div id="diag-report">確認中...</div>
+
+    <button id="diag-update-btn">🔄 最新版を確認</button>
+    <button id="diag-refresh-btn">📥 キャッシュを今すぐ手動で再取得する</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   おみくじ本体のロジック
+   ========================================================= */
+const fortunePool = [
+  { result: '大吉', weight: 10, msg: '最高の一日になりそう！' },
+  { result: '吉',   weight: 35, msg: 'いいことあるかも！' },
+  { result: '中吉', weight: 25, msg: 'なかなかの運勢だよ！' },
+  { result: '小吉', weight: 15, msg: 'ハッピーが見つかるよ！' },
+  { result: '末吉', weight: 10, msg: 'のんびりいこう！' },
+  { result: '凶',   weight: 5,  msg: '忘れ物に気をつけてね！' }
+];
+
+function getFortune() {
+  const totalWeight = fortunePool.reduce((sum, item) => sum + item.weight, 0);
+  let randomNum = Math.floor(Math.random() * totalWeight);
+  for (const item of fortunePool) {
+    if (randomNum < item.weight) return item;
+    randomNum -= item.weight;
+  }
+}
+
+// 画像はJSのインラインスタイルでbackgroundImage/backgroundSize/backgroundPositionを
+// 必ず同時に設定する。表示しない時もbackground-image:noneを明示する。
+function setBoxIconVisible(visible) {
+  const el = document.getElementById('box-icon');
+  if (visible) {
+    el.style.backgroundImage = "url('icon-192.png')";
+    el.style.backgroundSize = 'contain';
+    el.style.backgroundPosition = 'center';
+    el.style.display = 'block';
+  } else {
+    el.style.backgroundImage = 'none';
+    el.style.backgroundSize = 'contain';
+    el.style.backgroundPosition = 'center';
+    el.style.display = 'none';
+  }
+}
+
+function startOmikuji() {
+  const resultDiv = document.getElementById('result');
+  const msgDiv = document.getElementById('msg');
+  const startBtn = document.getElementById('start-btn');
+  const card = document.getElementById('card');
+
+  startBtn.disabled = true;
+  setBoxIconVisible(false);
+  msgDiv.textContent = '';
+  resultDiv.textContent = '📦';
+  card.classList.add('shake');
+
+  setTimeout(() => {
+    card.classList.remove('shake');
+    const data = getFortune();
+    resultDiv.textContent = data.result;
+    msgDiv.textContent = data.msg;
+    startBtn.disabled = false;
+  }, 1500);
+}
+
+function resetOmikuji() {
+  document.getElementById('result').textContent = '';
+  document.getElementById('msg').textContent = '';
+  setBoxIconVisible(true);
+}
+
+document.getElementById('start-btn').addEventListener('click', startOmikuji);
+document.getElementById('reset-btn').addEventListener('click', resetOmikuji);
+setBoxIconVisible(true);
+
+/* =========================================================
+   PWA: 完全オフライン優先 + 手動更新方式
+   ========================================================= */
+let swRegistration = null;
+
+function getMessageTarget() {
+  // controllerが取れる時はそれを優先。無い場合はactiveを使う
+  return navigator.serviceWorker.controller || (swRegistration && swRegistration.active);
+}
+
+function showUpdateBanner() {
+  document.getElementById('update-banner').style.display = 'block';
+}
+function hideUpdateBanner() {
+  document.getElementById('update-banner').style.display = 'none';
+}
+
+if ('serviceWorker' in navigator) {
+  // 外部ファイル方式で登録。updateViaCache: 'none' を必ず指定する
+  navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+    .then((reg) => {
+      swRegistration = reg;
+
+      // ① ページ読み込み時点で既にwaitingが存在するケースを検知（updatefoundだけでは検知できないため）
+      if (reg.waiting) {
+        showUpdateBanner();
+      }
+
+      // ② updatefoundイベントでの検知（手動でreg.update()を呼んだ時にのみ発火する）
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // すでにコントローラーがいる＝新規インストールではなく更新
+            showUpdateBanner();
+          }
+          refreshDiagnostics();
+        });
+      });
+
+      refreshDiagnostics();
+    })
+    .catch((err) => {
+      console.error('SW登録失敗', err);
+      refreshDiagnostics();
+    });
+
+  // 「更新する」を押した時だけskipWaiting→reloadする
+  let didReload = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (didReload) return;
+    didReload = true;
+    window.location.reload();
+  });
+
+  document.getElementById('btn-update-now').addEventListener('click', () => {
+    if (swRegistration && swRegistration.waiting) {
+      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  });
+  document.getElementById('btn-update-later').addEventListener('click', () => {
+    hideUpdateBanner();
+  });
+
+  // SWからの通知を受け取る（CACHE_REPORT / STATUS）
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.type === 'STATUS') {
+      renderStatus(data);
+    }
+    if (data.type === 'CACHE_REPORT') {
+      cacheNowResponded = true;
+      renderReport(data.report);
+      renderStorageAndSw();
+    }
+  });
+}
+
+// 「最新版を確認」ボタン：ここを押した時だけreg.update()を呼ぶ（自動更新は一切しない）
+document.getElementById('diag-update-btn').addEventListener('click', () => {
+  if (swRegistration) {
+    swRegistration.update().then(() => {
+      if (swRegistration.waiting) showUpdateBanner();
+    }).catch((e) => {
+      alert('更新確認に失敗しました（オフラインの可能性があります）: ' + e);
+    });
+  } else {
+    alert('Service Workerが未登録です。');
+  }
+});
+
+// ストレージ永続化のリクエスト（Cache Storageの自動削除を防ぐため）
+let storagePersistedResult = null;
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then((granted) => {
+    storagePersistedResult = granted;
+    renderStorageAndSw();
+  }).catch(() => {
+    storagePersistedResult = false;
+    renderStorageAndSw();
+  });
+}
+
+/* ===== 診断パネル ===== */
+document.getElementById('diag-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('diag-panel');
+  const isOpen = panel.style.display === 'block';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) refreshDiagnostics();
+});
+
+function renderStorageAndSw() {
+  const swEl = document.getElementById('diag-sw');
+  const lines = [];
+  if (swRegistration) {
+    lines.push('登録: <span class="ok">成功</span>　scope: ' + swRegistration.scope);
+    lines.push('installing: ' + (swRegistration.installing ? 'あり' : 'なし'));
+    lines.push('waiting: ' + (swRegistration.waiting ? '<span class="ng">あり（更新待ち）</span>' : 'なし'));
+    lines.push('active: ' + (swRegistration.active ? 'あり' : 'なし'));
+  } else if ('serviceWorker' in navigator) {
+    lines.push('<span class="ng">登録処理中または失敗</span>');
+  } else {
+    lines.push('<span class="ng">このブラウザはService Workerに未対応</span>');
+  }
+  lines.push('controller有無: ' + (navigator.serviceWorker.controller ? '<span class="ok">あり</span>' : '<span class="ng">なし</span>'));
+  swEl.innerHTML = lines.join('<br>');
+
+  const storageEl = document.getElementById('diag-storage');
+  if (storagePersistedResult === null) {
+    storageEl.textContent = '確認中...';
+  } else {
+    storageEl.innerHTML = storagePersistedResult
+      ? '<span class="ok">許可されました（永続化あり）</span>'
+      : '<span class="ng">許可されませんでした（ブラウザ依存）</span>';
+  }
+}
+
+function renderStatus(status) {
+  document.getElementById('diag-count').textContent =
+    status.cachedCount + ' / ' + status.expectedCount + '（キャッシュ名: ' + status.cacheName + '）';
+
+  const urlList = document.getElementById('diag-urls');
+  urlList.innerHTML = '';
+  if (status.cachedUrls && status.cachedUrls.length > 0) {
+    status.cachedUrls.forEach((u) => {
+      const li = document.createElement('li');
+      li.textContent = u;
+      urlList.appendChild(li);
+    });
+  } else {
+    const li = document.createElement('li');
+    li.textContent = '（キャッシュなし）';
+    urlList.appendChild(li);
+  }
+
+  if (status.lastReport) {
+    renderReport(status.lastReport);
+  }
+}
+
+function renderReport(report) {
+  const el = document.getElementById('diag-report');
+  if (!report) {
+    el.textContent = '記録なし';
+    return;
+  }
+  const time = new Date(report.time).toLocaleString('ja-JP');
+  let html = '取得日時: ' + time + '<br>';
+  html += '成功: <span class="ok">' + report.succeeded.length + '</span> / 失敗: ' +
+    (report.failed.length > 0 ? '<span class="ng">' + report.failed.length + '</span>' : '0');
+  if (report.failed.length > 0) {
+    html += '<ul>';
+    report.failed.forEach((f) => {
+      html += '<li><span class="ng">' + f.url + '</span><br>理由: ' + f.reason + '</li>';
+    });
+    html += '</ul>';
+  }
+  el.innerHTML = html;
+}
+
+function refreshDiagnostics() {
+  renderStorageAndSw();
+  const target = getMessageTarget();
+  if (target) {
+    target.postMessage({ type: 'GET_STATUS' });
+  } else {
+    document.getElementById('diag-count').textContent = '不明（SW未制御）';
+  }
+}
+
+// 「📥 キャッシュを今すぐ手動で再取得する」
+let cacheNowResponded = false;
+document.getElementById('diag-refresh-btn').addEventListener('click', () => {
+  const target = getMessageTarget();
+  if (!target) {
+    alert('Service Workerが制御していないため再取得できません。ページを再読み込みしてください。');
+    return;
+  }
+  cacheNowResponded = false;
+  target.postMessage({ type: 'CACHE_NOW' });
+
+  setTimeout(() => {
+    if (!cacheNowResponded) {
+      alert('3秒以内に応答がありませんでした。古いService Workerが原因で更新できない可能性があります。ブラウザでアプリを完全に終了してから開き直してください。');
+    }
+  }, 3000);
+});
+</script>
+</body>
+</html>
