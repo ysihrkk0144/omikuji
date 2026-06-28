@@ -16,6 +16,7 @@
     margin: 0;
     padding: 32px 16px 60px;
     color: #4a4a4a;
+    overflow-x: hidden;
   }
 
   /* ===== 更新バナー ===== */
@@ -55,6 +56,7 @@
     box-shadow: 0 8px 0px #ee5253;
     max-width: 350px;
     margin: 0 auto;
+    position: relative;
   }
   h1 { color: #ff6b6b; font-size: 2rem; margin: 0 0 10px 0; }
   .shrine-emoji { font-size: 3rem; margin-bottom: 6px; }
@@ -70,6 +72,7 @@
     justify-content: center;
     flex-direction: column;
     position: relative;
+    overflow: hidden;
   }
 
   /* 画像は必ずJSのインラインスタイルでbackgroundImage等を設定する（CSSでは形だけ用意） */
@@ -92,6 +95,47 @@
     50% { transform: rotate(3deg); }
     100% { transform: rotate(-3deg); }
   }
+  .shake-intense { animation: wakuwaku-intense 0.07s infinite; }
+  @keyframes wakuwaku-intense {
+    0% { transform: rotate(-6deg) scale(1.04); }
+    50% { transform: rotate(6deg) scale(1.04); }
+    100% { transform: rotate(-6deg) scale(1.04); }
+  }
+  .shake-fade { animation: wakuwaku-fade 0.6s ease-out; }
+  @keyframes wakuwaku-fade {
+    0% { transform: rotate(-3deg); }
+    60% { transform: rotate(2deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* ===== リーチ煽りテロップ（結果カードに重ねて表示） ===== */
+  .reach-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    border-radius: 17px;
+    background: rgba(255,255,255,0.92);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+    z-index: 5;
+    font-weight: bold;
+  }
+  .reach-1 { color: #ff9f43; font-size: 1.15rem; }
+  .reach-2 { color: #ff6b6b; font-size: 1.35rem; }
+  .reach-3 {
+    color: #ee5253;
+    font-size: 1.55rem;
+    animation: reach-pulse 0.3s infinite;
+  }
+  @keyframes reach-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
 
   .button-group { display: flex; flex-direction: column; gap: 10px; }
   button { font-size: 1.2rem; padding: 15px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.1s; }
@@ -99,6 +143,50 @@
   .btn-reset { background-color: #ffcc5c; color: #4a4a4a; font-size: 0.9rem; }
   button:active { transform: translateY(3px); box-shadow: none; }
   button:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+  /* ===== 連チャン記録パネル ===== */
+  .stats-panel {
+    margin-top: 16px;
+    background: #fff7e0;
+    border: 2px solid #ffcc5c;
+    border-radius: 16px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: #946200;
+    text-align: left;
+  }
+  .stats-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .stats-row strong { font-size: 1rem; color: #ee5253; }
+
+  /* ===== 大当たりエフェクト（紙吹雪・フラッシュ） ===== */
+  #flash-overlay {
+    position: fixed;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 999;
+    transition: opacity 0.4s ease;
+  }
+  #confetti-layer {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 998;
+  }
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 8px;
+    height: 14px;
+    opacity: 0.95;
+    animation-name: confetti-fall;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  @keyframes confetti-fall {
+    to { transform: translateY(110vh) rotate(480deg); opacity: 0.85; }
+  }
 
   /* ===== 診断パネル（開発者向け：あえて事務的な見た目にする） ===== */
   .diag-wrap { max-width: 350px; margin: 20px auto 0; }
@@ -154,6 +242,9 @@
 </head>
 <body>
 
+<div id="flash-overlay"></div>
+<div id="confetti-layer"></div>
+
 <div id="update-banner">
   <p>🆕 新しいバージョンが見つかりました</p>
   <div class="banner-buttons">
@@ -170,11 +261,18 @@
     <div id="box-icon"></div>
     <div id="result" class="result"></div>
     <div id="msg" class="message"></div>
+    <div id="reach-text" class="reach-text"></div>
   </div>
 
   <div class="button-group">
     <button class="btn-start" id="start-btn">おみくじを引く！</button>
     <button class="btn-reset" id="reset-btn">もういちど</button>
+  </div>
+
+  <div class="stats-panel" id="stats-panel">
+    <div class="stats-row"><span>本日の挑戦</span><span><strong id="stat-today-count">0</strong> 回</span></div>
+    <div class="stats-row"><span>本日の大吉</span><span><strong id="stat-today-daikichi">0</strong> 回</span></div>
+    <div class="stats-row"><span>🔥 連続当たり中</span><span><strong id="stat-streak">0</strong> 回（自己ベスト <span id="stat-best-streak">0</span>）</span></div>
   </div>
 </div>
 
@@ -203,6 +301,110 @@
 
 <script>
 /* =========================================================
+   サウンド・バイブレーション・視覚エフェクト系ユーティリティ
+   ========================================================= */
+let audioCtx = null;
+function getAudioCtx() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!audioCtx) audioCtx = new AC();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq, startTime, duration, type, gainPeak) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type || 'square';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(gainPeak || 0.15, startTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration);
+}
+
+function playDrumRoll(totalMs, tickCount) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  for (let i = 0; i < tickCount; i++) {
+    const t = now + (totalMs / 1000) * (i / tickCount);
+    beep(180 + i * 4, t, 0.05, 'square', 0.1);
+  }
+}
+function playFanfare() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const notes = [523.25, 659.25, 784.0, 1046.5];
+  notes.forEach((f, i) => beep(f, now + i * 0.15, 0.35, 'triangle', 0.2));
+}
+function playChime() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  beep(880, ctx.currentTime, 0.18, 'sine', 0.15);
+}
+function playLetdown() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  beep(330, now, 0.3, 'sine', 0.12);
+  beep(220, now + 0.25, 0.4, 'sine', 0.12);
+}
+
+function vibrate(pattern) {
+  if (navigator.vibrate) {
+    try { navigator.vibrate(pattern); } catch (e) { /* 無視 */ }
+  }
+}
+
+function spawnConfetti(count) {
+  const container = document.getElementById('confetti-layer');
+  const colors = ['#ff6b6b', '#ffa502', '#feca57', '#1dd1a1', '#54a0ff', '#5f27cd'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDelay = (Math.random() * 0.3) + 's';
+    piece.style.animationDuration = (1.2 + Math.random() * 0.8) + 's';
+    piece.style.transform = 'rotate(' + Math.floor(Math.random() * 360) + 'deg)';
+    container.appendChild(piece);
+    setTimeout(() => piece.remove(), 2600);
+  }
+}
+
+function flashScreen(ms, rainbow) {
+  const el = document.getElementById('flash-overlay');
+  el.style.background = rainbow
+    ? 'linear-gradient(135deg, #ff6b6b, #feca57, #1dd1a1, #54a0ff, #5f27cd)'
+    : '#ffffff';
+  el.style.opacity = '0.85';
+  setTimeout(() => { el.style.opacity = '0'; }, ms);
+}
+
+function showReachText(text, colorClass) {
+  const el = document.getElementById('reach-text');
+  el.textContent = text;
+  el.className = 'reach-text ' + (colorClass || '');
+  el.style.opacity = '1';
+}
+function hideReachText() {
+  const el = document.getElementById('reach-text');
+  el.style.opacity = '0';
+  el.textContent = '';
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/* =========================================================
    おみくじ本体のロジック
    ========================================================= */
 const fortunePool = [
@@ -223,6 +425,13 @@ function getFortune() {
   }
 }
 
+function getTier(rank) {
+  if (rank === '大吉') return 'jackpot';
+  if (rank === '凶') return 'low';
+  if (rank === '吉' || rank === '中吉') return 'high';
+  return 'mid'; // 小吉, 末吉
+}
+
 // 画像はJSのインラインスタイルでbackgroundImage/backgroundSize/backgroundPositionを
 // 必ず同時に設定する。表示しない時もbackground-image:noneを明示する。
 function setBoxIconVisible(visible) {
@@ -240,36 +449,231 @@ function setBoxIconVisible(visible) {
   }
 }
 
-function startOmikuji() {
+/* ----- ティアごとの「煽り」シーケンス（最終結果はまだ表示しない） ----- */
+async function runLowTier() {
+  // 凶：一瞬「当たったかも」と見せてから静かに落とす
+  playDrumRoll(500, 6);
+  vibrate(40);
+  showReachText('お、当たったかも…！？', 'reach-1');
+  await sleep(550);
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.textContent = '中吉'; // フェイク
+  hideReachText();
+  await sleep(450);
+
+  showReachText('…あれ？', 'reach-1');
+  const card = document.getElementById('card');
+  card.classList.remove('shake');
+  card.classList.add('shake-fade');
+  playLetdown();
+  vibrate([30, 60, 30]);
+  await sleep(650);
+  hideReachText();
+}
+
+async function runMidTier() {
+  playDrumRoll(650, 8);
+  vibrate(30);
+  showReachText('ドキドキ…', 'reach-1');
+  await sleep(850);
+  hideReachText();
+}
+
+async function runHighTier() {
+  const card = document.getElementById('card');
+
+  playDrumRoll(500, 6);
+  showReachText('もしかして…！？', 'reach-1');
+  vibrate(40);
+  await sleep(600);
+
+  card.classList.remove('shake');
+  card.classList.add('shake-intense');
+  showReachText('期待していい…？', 'reach-2');
+  playDrumRoll(600, 10);
+  vibrate(60);
+  await sleep(700);
+
+  hideReachText();
+}
+
+async function runJackpotTier() {
+  const card = document.getElementById('card');
+  const resultDiv = document.getElementById('result');
+
+  showReachText('もしかして…！？', 'reach-1');
+  playDrumRoll(500, 6);
+  vibrate(40);
+  await sleep(600);
+
+  card.classList.remove('shake');
+  card.classList.add('shake-intense');
+  showReachText('激熱リーチ！？', 'reach-2');
+  playDrumRoll(600, 10);
+  vibrate(80);
+  await sleep(700);
+
+  showReachText('超激熱！！！', 'reach-3');
+  playDrumRoll(700, 14);
+  vibrate([60, 40, 60, 40, 100]);
+  await sleep(700);
+
+  // ニアミス（フェイク結果）でさらに煽る
+  const fakeOptions = ['吉', '中吉', '小吉'];
+  resultDiv.textContent = fakeOptions[Math.floor(Math.random() * fakeOptions.length)];
+  hideReachText();
+  await sleep(400);
+
+  showReachText('そして…', 'reach-3');
+  await sleep(500);
+  hideReachText();
+}
+
+/* ----- 最終結果が表示された直後の「お祝い」エフェクト ----- */
+function celebrate(tier) {
+  if (tier === 'jackpot') {
+    flashScreen(900, true);
+    spawnConfetti(70);
+    playFanfare();
+    vibrate([0, 80, 60, 80, 60, 220]);
+  } else if (tier === 'high') {
+    flashScreen(450, false);
+    spawnConfetti(18);
+    playChime();
+    vibrate(50);
+  } else if (tier === 'mid') {
+    playChime();
+    vibrate(20);
+  }
+  // tier === 'low'（凶）の時はあえて何も鳴らさない
+}
+
+let isDrawing = false;
+async function startOmikuji() {
+  if (isDrawing) return;
+  isDrawing = true;
+
   const resultDiv = document.getElementById('result');
   const msgDiv = document.getElementById('msg');
   const startBtn = document.getElementById('start-btn');
+  const resetBtn = document.getElementById('reset-btn');
   const card = document.getElementById('card');
 
   startBtn.disabled = true;
+  resetBtn.disabled = true;
   setBoxIconVisible(false);
   msgDiv.textContent = '';
+  hideReachText();
   resultDiv.textContent = '📦';
+  card.classList.remove('shake-intense', 'shake-fade');
   card.classList.add('shake');
 
-  setTimeout(() => {
-    card.classList.remove('shake');
-    const data = getFortune();
-    resultDiv.textContent = data.result;
-    msgDiv.textContent = data.msg;
-    startBtn.disabled = false;
-  }, 1500);
+  const data = getFortune();
+  const tier = getTier(data.result);
+
+  if (tier === 'low') {
+    await runLowTier();
+  } else if (tier === 'mid') {
+    await runMidTier();
+  } else if (tier === 'high') {
+    await runHighTier();
+  } else {
+    await runJackpotTier();
+  }
+
+  card.classList.remove('shake', 'shake-intense', 'shake-fade');
+  resultDiv.textContent = data.result;
+  msgDiv.textContent = data.msg;
+  hideReachText();
+
+  celebrate(tier);
+  updateStatsAfterDraw(data.result);
+  renderStatsPanel();
+
+  startBtn.disabled = false;
+  resetBtn.disabled = false;
+  isDrawing = false;
 }
 
 function resetOmikuji() {
   document.getElementById('result').textContent = '';
   document.getElementById('msg').textContent = '';
+  document.getElementById('card').classList.remove('shake', 'shake-intense', 'shake-fade');
+  hideReachText();
   setBoxIconVisible(true);
 }
 
-document.getElementById('start-btn').addEventListener('click', startOmikuji);
+document.getElementById('start-btn').addEventListener('click', () => {
+  startOmikuji().catch((err) => {
+    console.error(err);
+    isDrawing = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('reset-btn').disabled = false;
+  });
+});
 document.getElementById('reset-btn').addEventListener('click', resetOmikuji);
 setBoxIconVisible(true);
+
+/* =========================================================
+   連チャン記録（localStorageに保存）
+   ========================================================= */
+const STATS_KEY = 'omikuji_stats_v1';
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+
+function loadStats() {
+  let stats = {};
+  try {
+    stats = JSON.parse(localStorage.getItem(STATS_KEY)) || {};
+  } catch (e) {
+    stats = {};
+  }
+  if (stats.date !== todayStr()) {
+    stats.date = todayStr();
+    stats.todayCount = 0;
+    stats.todayDaikichi = 0;
+  }
+  stats.todayCount = stats.todayCount || 0;
+  stats.todayDaikichi = stats.todayDaikichi || 0;
+  stats.currentStreak = stats.currentStreak || 0;
+  stats.bestStreak = stats.bestStreak || 0;
+  return stats;
+}
+
+function saveStats(stats) {
+  try {
+    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+  } catch (e) {
+    // 保存に失敗しても画面表示は継続する
+  }
+}
+
+function updateStatsAfterDraw(rank) {
+  const stats = loadStats();
+  stats.todayCount += 1;
+  if (rank === '大吉') stats.todayDaikichi += 1;
+
+  if (rank === '凶') {
+    stats.currentStreak = 0;
+  } else {
+    stats.currentStreak += 1;
+    if (stats.currentStreak > stats.bestStreak) stats.bestStreak = stats.currentStreak;
+  }
+  saveStats(stats);
+}
+
+function renderStatsPanel() {
+  const stats = loadStats();
+  document.getElementById('stat-today-count').textContent = stats.todayCount;
+  document.getElementById('stat-today-daikichi').textContent = stats.todayDaikichi;
+  document.getElementById('stat-streak').textContent = stats.currentStreak;
+  document.getElementById('stat-best-streak').textContent = stats.bestStreak;
+}
+renderStatsPanel();
 
 /* =========================================================
    PWA: 完全オフライン優先 + 手動更新方式
@@ -277,7 +681,6 @@ setBoxIconVisible(true);
 let swRegistration = null;
 
 function getMessageTarget() {
-  // controllerが取れる時はそれを優先。無い場合はactiveを使う
   return navigator.serviceWorker.controller || (swRegistration && swRegistration.active);
 }
 
@@ -289,23 +692,19 @@ function hideUpdateBanner() {
 }
 
 if ('serviceWorker' in navigator) {
-  // 外部ファイル方式で登録。updateViaCache: 'none' を必ず指定する
   navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
     .then((reg) => {
       swRegistration = reg;
 
-      // ① ページ読み込み時点で既にwaitingが存在するケースを検知（updatefoundだけでは検知できないため）
       if (reg.waiting) {
         showUpdateBanner();
       }
 
-      // ② updatefoundイベントでの検知（手動でreg.update()を呼んだ時にのみ発火する）
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // すでにコントローラーがいる＝新規インストールではなく更新
             showUpdateBanner();
           }
           refreshDiagnostics();
@@ -319,7 +718,6 @@ if ('serviceWorker' in navigator) {
       refreshDiagnostics();
     });
 
-  // 「更新する」を押した時だけskipWaiting→reloadする
   let didReload = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (didReload) return;
@@ -336,7 +734,6 @@ if ('serviceWorker' in navigator) {
     hideUpdateBanner();
   });
 
-  // SWからの通知を受け取る（CACHE_REPORT / STATUS）
   navigator.serviceWorker.addEventListener('message', (event) => {
     const data = event.data || {};
     if (data.type === 'STATUS') {
@@ -350,7 +747,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// 「最新版を確認」ボタン：ここを押した時だけreg.update()を呼ぶ（自動更新は一切しない）
 document.getElementById('diag-update-btn').addEventListener('click', () => {
   if (swRegistration) {
     swRegistration.update().then(() => {
@@ -363,7 +759,6 @@ document.getElementById('diag-update-btn').addEventListener('click', () => {
   }
 });
 
-// ストレージ永続化のリクエスト（Cache Storageの自動削除を防ぐため）
 let storagePersistedResult = null;
 if (navigator.storage && navigator.storage.persist) {
   navigator.storage.persist().then((granted) => {
@@ -375,7 +770,6 @@ if (navigator.storage && navigator.storage.persist) {
   });
 }
 
-/* ===== 診断パネル ===== */
 document.getElementById('diag-toggle').addEventListener('click', () => {
   const panel = document.getElementById('diag-panel');
   const isOpen = panel.style.display === 'block';
@@ -462,7 +856,6 @@ function refreshDiagnostics() {
   }
 }
 
-// 「📥 キャッシュを今すぐ手動で再取得する」
 let cacheNowResponded = false;
 document.getElementById('diag-refresh-btn').addEventListener('click', () => {
   const target = getMessageTarget();
