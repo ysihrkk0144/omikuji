@@ -86,11 +86,44 @@
   h1 { color: #ff6b6b; font-size: 2rem; margin: 0 0 10px 0; }
   .shrine-emoji { font-size: 3rem; margin-bottom: 6px; }
 
+  /* ===== カードの土台（枠と中身を分離するための位置基準） ===== */
+  .card-stage {
+    position: relative;
+    margin: 24px 0;
+  }
+
+  /* 枠（震えるのはこれだけ。中身には触れない） */
+  .card-frame {
+    position: absolute;
+    inset: -4px;
+    border: 3px dashed #ff9f43;
+    border-radius: 22px;
+    pointer-events: none;
+    z-index: 12;
+  }
+  .shake { animation: wakuwaku 0.1s infinite; }
+  @keyframes wakuwaku {
+    0% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+    100% { transform: rotate(-3deg); }
+  }
+  .shake-intense { animation: wakuwaku-intense 0.07s infinite; }
+  @keyframes wakuwaku-intense {
+    0% { transform: rotate(-6deg) scale(1.04); }
+    50% { transform: rotate(6deg) scale(1.04); }
+    100% { transform: rotate(-6deg) scale(1.04); }
+  }
+  .shake-fade { animation: wakuwaku-fade 0.6s ease-out; }
+  @keyframes wakuwaku-fade {
+    0% { transform: rotate(-3deg); }
+    60% { transform: rotate(2deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  /* 中身（震えない） */
   .result-card {
     background-color: #fef2f2;
     border-radius: 20px;
-    border: 3px dashed #ff9f43;
-    margin: 20px 0;
     height: 160px;
     display: flex;
     align-items: center;
@@ -113,25 +146,6 @@
     text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.1);
   }
   .message { font-size: 1rem; font-weight: bold; color: #ff9f43; margin-top: 5px; }
-
-  .shake { animation: wakuwaku 0.1s infinite; }
-  @keyframes wakuwaku {
-    0% { transform: rotate(-3deg); }
-    50% { transform: rotate(3deg); }
-    100% { transform: rotate(-3deg); }
-  }
-  .shake-intense { animation: wakuwaku-intense 0.07s infinite; }
-  @keyframes wakuwaku-intense {
-    0% { transform: rotate(-6deg) scale(1.04); }
-    50% { transform: rotate(6deg) scale(1.04); }
-    100% { transform: rotate(-6deg) scale(1.04); }
-  }
-  .shake-fade { animation: wakuwaku-fade 0.6s ease-out; }
-  @keyframes wakuwaku-fade {
-    0% { transform: rotate(-3deg); }
-    60% { transform: rotate(2deg); }
-    100% { transform: rotate(0deg); }
-  }
 
   /* ===== リーチ煽りテロップ ===== */
   .reach-text {
@@ -188,12 +202,12 @@
     100% { opacity: 0; transform: scale(1.7); }
   }
 
-  /* ===== 狐演出 ===== */
+  /* ===== 狐演出（左下。リールと被らないように） ===== */
   .fox-pop {
     position: absolute;
     font-size: 2.2rem;
     bottom: 6px;
-    right: 10px;
+    left: 10px;
     z-index: 6;
     animation: fox-bounce 1.1s ease-in-out;
     pointer-events: none;
@@ -205,6 +219,77 @@
     80% { transform: translateY(0) scale(1); opacity: 1; }
     100% { transform: translateY(10px) scale(0.9); opacity: 0; }
   }
+
+  /* ===== ミニスロットリール（右下） ===== */
+  .reel-widget {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    display: none;
+    gap: 3px;
+    z-index: 6;
+  }
+  .reel-box {
+    width: 30px;
+    height: 22px;
+    background: #2f3542;
+    color: #ffd700;
+    font-size: 0.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid #ffd700;
+    line-height: 1;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* ===== ふすま演出（大吉確定の大型リアクション） ===== */
+  .fusuma-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: none;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 20px;
+  }
+  .fusuma-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    background: repeating-linear-gradient(90deg, #f5ecd7 0px, #f5ecd7 38px, #d8c9a3 40px);
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.18);
+    transition: transform 0.6s cubic-bezier(0.7,0,0.3,1);
+  }
+  .fusuma-left { left: 0; transform: translateX(-100%); border-right: 3px solid #5c3b1e; }
+  .fusuma-right { right: 0; transform: translateX(100%); border-left: 3px solid #5c3b1e; }
+  .fusuma-left.closed { transform: translateX(0); }
+  .fusuma-right.closed { transform: translateX(0); }
+  .fusuma-overlay.fusuma-gold .fusuma-panel {
+    background: repeating-linear-gradient(90deg, #fff3c4 0px, #fff3c4 38px, #ffd700 40px);
+  }
+  .fusuma-overlay.fusuma-gold .fusuma-left { border-right-color: #b8860b; }
+  .fusuma-overlay.fusuma-gold .fusuma-right { border-left-color: #b8860b; }
+  .fusuma-flower {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.3rem;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .button-group { display: flex; flex-direction: column; gap: 10px; }
+  button { font-size: 1.2rem; padding: 15px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.1s; }
+  .btn-start { background-color: #ff6b6b; color: white; box-shadow: 0 5px 0px #ee5253; }
+  .btn-reset { background-color: #ffcc5c; color: #4a4a4a; font-size: 0.9rem; }
+  button:active { transform: translateY(3px); box-shadow: none; }
+  button:disabled { opacity: 0.6; cursor: default; transform: none; }
 
   /* ===== 神託ボックス ===== */
   .oracle-box {
@@ -226,13 +311,6 @@
     letter-spacing: 0.1em;
     margin-bottom: 4px;
   }
-
-  .button-group { display: flex; flex-direction: column; gap: 10px; }
-  button { font-size: 1.2rem; padding: 15px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.1s; }
-  .btn-start { background-color: #ff6b6b; color: white; box-shadow: 0 5px 0px #ee5253; }
-  .btn-reset { background-color: #ffcc5c; color: #4a4a4a; font-size: 0.9rem; }
-  button:active { transform: translateY(3px); box-shadow: none; }
-  button:disabled { opacity: 0.6; cursor: default; transform: none; }
 
   /* ===== 連チャン記録パネル ===== */
   .stats-panel {
@@ -386,11 +464,26 @@
   <div class="shrine-emoji">⛩️</div>
   <h1>おみくじ</h1>
 
-  <div class="result-card" id="card">
-    <div id="box-icon"></div>
-    <div id="result" class="result"></div>
-    <div id="msg" class="message"></div>
-    <div id="reach-text" class="reach-text"></div>
+  <div class="card-stage">
+    <div class="card-frame" id="card-frame"></div>
+    <div class="result-card" id="card">
+      <div id="box-icon"></div>
+      <div id="result" class="result"></div>
+      <div id="msg" class="message"></div>
+      <div id="reach-text" class="reach-text"></div>
+
+      <div class="reel-widget" id="reel-widget">
+        <div class="reel-box" id="reel1">大吉</div>
+        <div class="reel-box" id="reel2">大吉</div>
+        <div class="reel-box" id="reel3">大吉</div>
+      </div>
+
+      <div class="fusuma-overlay" id="fusuma-overlay">
+        <div class="fusuma-panel fusuma-left" id="fusuma-left"></div>
+        <div class="fusuma-panel fusuma-right" id="fusuma-right"></div>
+        <div class="fusuma-flower">🌸</div>
+      </div>
+    </div>
   </div>
 
   <div class="oracle-box" id="oracle-box">
@@ -559,6 +652,27 @@ function playKyuin() {
   osc.start(now);
   osc.stop(now + 0.32);
 }
+function playFusumaSound(kind) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const bufferSize = Math.floor(ctx.sampleRate * 0.3);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = kind === 'open' ? 1200 : 600;
+  const gain = ctx.createGain();
+  gain.gain.value = 0.15;
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  noise.start();
+}
 
 function vibrate(pattern) {
   if (navigator.vibrate) {
@@ -626,6 +740,60 @@ function hideReachText() {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/* =========================================================
+   ミニスロットリール（右下。確定するまで運勢の文字が回転する）
+   ========================================================= */
+let reelIntervals = [];
+const reelChars = ['大吉', '吉', '中吉', '小吉', '末吉', '凶', '大凶'];
+function startReels() {
+  stopReels();
+  ['reel1', 'reel2', 'reel3'].forEach((id) => {
+    const el = document.getElementById(id);
+    const interval = setInterval(() => {
+      el.textContent = reelChars[Math.floor(Math.random() * reelChars.length)];
+    }, 70 + Math.random() * 40);
+    reelIntervals.push(interval);
+  });
+  document.getElementById('reel-widget').style.display = 'flex';
+}
+function stopReels() {
+  reelIntervals.forEach((id) => clearInterval(id));
+  reelIntervals = [];
+}
+function hideReels() {
+  stopReels();
+  document.getElementById('reel-widget').style.display = 'none';
+}
+
+/* =========================================================
+   ふすま演出（大吉確定の大型リアクション）
+   ========================================================= */
+function closeFusuma(gold) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('fusuma-overlay');
+    overlay.classList.toggle('fusuma-gold', !!gold);
+    overlay.style.display = 'block';
+    playFusumaSound('close');
+    // 一旦表示してから閉じるアニメーションを発火させる
+    requestAnimationFrame(() => {
+      document.getElementById('fusuma-left').classList.add('closed');
+      document.getElementById('fusuma-right').classList.add('closed');
+    });
+    setTimeout(resolve, 650);
+  });
+}
+function openFusuma() {
+  return new Promise((resolve) => {
+    playFusumaSound('open');
+    document.getElementById('fusuma-left').classList.remove('closed');
+    document.getElementById('fusuma-right').classList.remove('closed');
+    setTimeout(() => {
+      document.getElementById('fusuma-overlay').style.display = 'none';
+      resolve();
+    }, 650);
+  });
 }
 
 /* =========================================================
@@ -711,7 +879,7 @@ function setBoxIconVisible(visible) {
   }
 }
 
-/* ----- ティアごとの「煽り」シーケンス ----- */
+/* ----- ティアごとの「煽り」シーケンス（枠＝card-frameだけを揺らす） ----- */
 async function runLowTier() {
   playDrumRoll(500, 6);
   vibrate(40);
@@ -724,15 +892,15 @@ async function runLowTier() {
   await sleep(450);
 
   showReachText('…あれ？', 'reach-1');
-  const card = document.getElementById('card');
-  card.classList.remove('shake');
-  card.classList.add('shake-fade');
+  const frame = document.getElementById('card-frame');
+  frame.classList.remove('shake');
+  frame.classList.add('shake-fade');
   playLetdown();
   vibrate([30, 60, 30]);
   await sleep(650);
   hideReachText();
 
-  return { fox: false, premium: false };
+  return { fox: false, premium: false, fusuma: false };
 }
 
 async function runMidTier() {
@@ -743,11 +911,11 @@ async function runMidTier() {
   if (fox) spawnFox();
   await sleep(850);
   hideReachText();
-  return { fox: fox, premium: false };
+  return { fox: fox, premium: false, fusuma: false };
 }
 
 async function runHighTier() {
-  const card = document.getElementById('card');
+  const frame = document.getElementById('card-frame');
   const fox = Math.random() < 0.6;
   const kyuin = Math.random() < 0.5;
 
@@ -757,8 +925,8 @@ async function runHighTier() {
   if (fox) spawnFox();
   await sleep(600);
 
-  card.classList.remove('shake');
-  card.classList.add('shake-intense');
+  frame.classList.remove('shake');
+  frame.classList.add('shake-intense');
   showReachText('期待していい…？', 'reach-2');
   playDrumRoll(600, 10);
   vibrate(60);
@@ -766,11 +934,11 @@ async function runHighTier() {
   await sleep(700);
 
   hideReachText();
-  return { fox: fox, kyuin: kyuin, premium: false };
+  return { fox: fox, kyuin: kyuin, premium: false, fusuma: false };
 }
 
 async function runJackpotTier() {
-  const card = document.getElementById('card');
+  const frame = document.getElementById('card-frame');
   const resultDiv = document.getElementById('result');
   const isPremium = Math.random() < 0.25;
 
@@ -780,8 +948,8 @@ async function runJackpotTier() {
   spawnFox();
   await sleep(600);
 
-  card.classList.remove('shake');
-  card.classList.add('shake-intense');
+  frame.classList.remove('shake');
+  frame.classList.add('shake-intense');
   showReachText('激熱リーチ！？', 'reach-2');
   playDrumRoll(600, 10);
   vibrate(80);
@@ -810,7 +978,10 @@ async function runJackpotTier() {
   await sleep(500);
   hideReachText();
 
-  return { fox: true, kyuin: true, premium: isPremium };
+  // ふすまが閉まり、結果はこの裏で確定する（まだ見えない）
+  await closeFusuma(isPremium);
+
+  return { fox: true, kyuin: true, premium: isPremium, fusuma: true };
 }
 
 /* ----- 最終結果が表示された直後の「お祝い」エフェクト ----- */
@@ -848,7 +1019,7 @@ async function startOmikuji() {
   const msgDiv = document.getElementById('msg');
   const startBtn = document.getElementById('start-btn');
   const resetBtn = document.getElementById('reset-btn');
-  const card = document.getElementById('card');
+  const frame = document.getElementById('card-frame');
 
   startBtn.disabled = true;
   resetBtn.disabled = true;
@@ -857,13 +1028,14 @@ async function startOmikuji() {
   hideReachText();
   hideOracle();
   resultDiv.textContent = '📦';
-  card.classList.remove('shake-intense', 'shake-fade');
-  card.classList.add('shake');
+  frame.classList.remove('shake-intense', 'shake-fade');
+  frame.classList.add('shake');
+  startReels();
 
   const data = getFortune();
   const tier = getTier(data.result);
 
-  let fx = { fox: false, premium: false };
+  let fx = { fox: false, premium: false, fusuma: false };
   if (tier === 'low') {
     fx = await runLowTier();
   } else if (tier === 'mid') {
@@ -874,11 +1046,18 @@ async function startOmikuji() {
     fx = await runJackpotTier();
   }
 
-  card.classList.remove('shake', 'shake-intense', 'shake-fade');
+  hideReels();
+  frame.classList.remove('shake', 'shake-intense', 'shake-fade');
+
+  // ふすまが閉まっている間（見えない状態）に最終結果をセットしておく
   resultDiv.textContent = data.result;
   msgDiv.textContent = data.msg;
   hideReachText();
   showOracle(tier);
+
+  if (fx.fusuma) {
+    await openFusuma();
+  }
 
   celebrate(tier, fx.premium);
   afterDrawBookkeeping(data.result, fx);
@@ -891,9 +1070,13 @@ async function startOmikuji() {
 function resetOmikuji() {
   document.getElementById('result').textContent = '';
   document.getElementById('msg').textContent = '';
-  document.getElementById('card').classList.remove('shake', 'shake-intense', 'shake-fade');
+  document.getElementById('card-frame').classList.remove('shake', 'shake-intense', 'shake-fade');
   hideReachText();
   hideOracle();
+  hideReels();
+  document.getElementById('fusuma-overlay').style.display = 'none';
+  document.getElementById('fusuma-left').classList.remove('closed');
+  document.getElementById('fusuma-right').classList.remove('closed');
   setBoxIconVisible(true);
 }
 
@@ -901,6 +1084,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
   startOmikuji().catch((err) => {
     console.error(err);
     isDrawing = false;
+    hideReels();
     document.getElementById('start-btn').disabled = false;
     document.getElementById('reset-btn').disabled = false;
   });
