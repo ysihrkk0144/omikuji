@@ -10,7 +10,7 @@
    ========================================================= */
 
 // ファイル更新のたびにこの番号を必ず上げる
-const CACHE_NAME = 'omikuji-cache-v2';
+const CACHE_NAME = 'omikuji-cache-v3';
 
 // 実在するファイル名と完全一致させること（service-worker.js自体は含めない）
 const ASSETS = [
